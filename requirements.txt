@@ -1,0 +1,9 @@
+streamlit
+pandas
+numpy
+matplotlib==3.7.1  #Replace with your local version if needed
+seaborn
+nfl_data_py
+xgboost
+scikit-learn
+scipy
