@@ -87,7 +87,7 @@ if page == "Welcome":
         Welcome to **Midpoint Madness**, the game where you test your football knowledge and predictive skills!
         Created by Brandon Huggard
              
-        **How to Play:**
+        **Midpoint Madness Rules:**
         - Choose a quarterback whose performance you want to predict.
         - Pick an equal number of quarterbacks who will throw for more and fewer passing yards than your selected QB.
         - See if you've created a "Midpoint Madness" scenario and check the probabilities and odds!
