@@ -67,7 +67,7 @@ DATABASE_FILE = "midpoint_madness.db"
 conn = sqlite3.connect(DATABASE_FILE)
 
 # Load QB data
-query = "SELECT * FROM predictions"  # Replace 'predictions' with your table name
+query = "SELECT * FROM predictions" 
 df = pd.read_sql(query, conn)
 
 # Convert the 'simulations' column back to a usable format
