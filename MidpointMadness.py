@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns  # Import seaborn for kdeplot
 
 # Import your midpoint madness function
-def midpoint_madness(qb_name, qb_simulations, over_qbs=[], under_qbs=[]):
+def midpoint_madness_app(qb_name, qb_simulations, over_qbs=[], under_qbs=[]):
     """
     Function to simulate over/under passing yard predictions in Midpoint Madness game.
     """
@@ -22,7 +22,7 @@ def midpoint_madness(qb_name, qb_simulations, over_qbs=[], under_qbs=[]):
         prob_main_qb_more = np.mean(np.array(main_qb_simulations) > np.array(over_qb_simulations))
         results[f"{qb_name} > {over_qb}"] = {
             'probability': prob_main_qb_more,
-            'american_odds': implied_odds_to_american(prob_main_qb_more)
+            'american_odds': implied_odds_to_american_app(prob_main_qb_more)
         }
         # Update the combined probability
         combined_prob *= prob_main_qb_more
@@ -33,18 +33,18 @@ def midpoint_madness(qb_name, qb_simulations, over_qbs=[], under_qbs=[]):
         prob_main_qb_less = np.mean(np.array(main_qb_simulations) < np.array(under_qb_simulations))
         results[f"{qb_name} < {under_qb}"] = {
             'probability': prob_main_qb_less,
-            'american_odds': implied_odds_to_american(prob_main_qb_less)
+            'american_odds': implied_odds_to_american_app(prob_main_qb_less)
         }
         # Update the combined probability
         combined_prob *= prob_main_qb_less
     
     # Add combined probability to the results
     results['combined_probability'] = combined_prob
-    results['combined_american_odds'] = implied_odds_to_american(combined_prob, cap_large=True)
+    results['combined_american_odds'] = implied_odds_to_american_app(combined_prob, cap_large=True)
     
     return results
 
-def implied_odds_to_american(probability, cap_large=True, cap_value=5000):
+def implied_odds_to_american_app(probability, cap_large=True, cap_value=5000):
     """
     Converts probability to American odds format.
     """
@@ -183,7 +183,7 @@ elif page == "Custom Passing Yard Props":
         prob_over = max(0.0001, min(prob_over, 0.9999))  # Avoid 0 or 1 probabilities
 
         # Convert to American odds
-        odds_over = implied_odds_to_american(prob_over, cap_large=True, cap_value=4500)
+        odds_over = implied_odds_to_american_app(prob_over, cap_large=True, cap_value=4500)
 
         # Display results
         st.markdown(f"### Odds {custom_qb} throws for more than {custom_line} yards:")
