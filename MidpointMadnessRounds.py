@@ -141,6 +141,33 @@ st.title("🏈 Midpoint Madness")
 
 st.markdown(f"### Week {st.session_state.week} | Coins: {st.session_state.coins:.2f} | Streak: {st.session_state.streak}")
 
+if st.button("💰 Cash Out and End Game"):
+    best_move = None
+    best_odds = 100000
+    for round_result in st.session_state.history:
+        for r in round_result.get('results', []):
+            if r['result'] == 'correct' and r['american_odds'] not in ['N/A', None]:
+                try:
+                    odds_val = int(r['american_odds'].replace('+', '')) if '+' in r['american_odds'] else abs(int(r['american_odds']))
+                    if odds_val < best_odds:
+                        best_odds = odds_val
+                        best_move = r['comparison'] + f" (Odds: {r['american_odds']})"
+                except:
+                    continue
+
+    st.success(f"You cashed out with {st.session_state.coins:.2f} coins at Week {st.session_state.week}! 🎉")
+    if best_move:
+        st.info(f"🏅 Best Move: {best_move}")
+    st.markdown("---")
+    st.markdown("Want to share your score? Try copying and pasting:")
+    st.code(f"I scored {st.session_state.coins:.2f} coins and cashed out at Week {st.session_state.week} in Midpoint Madness! My best move: {best_move if best_move else 'N/A'}")
+
+    if st.button("🔁 Start a New Game"):
+        reset_game()
+        st.rerun()
+
+    st.stop()
+
 with st.expander("🔁 Reset Game"):
     if st.button("Yes, I'm sure — Reset Game NOW", type="primary"):
         reset_game()
@@ -204,4 +231,5 @@ if st.session_state.result:
         st.session_state.round_complete = False
         st.session_state.result = None
 
-#TO ADD: Leaderboard? Superbowl week logic. Welcome page. description of model/game page.
+
+#TO ADD: Leaderboard? Superbowl week logic. Welcome page. description of model/game page. Next add focus has to be welcome page.
