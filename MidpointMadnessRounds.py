@@ -36,6 +36,8 @@ if 'score' not in st.session_state:
     st.session_state.score = 0
 if 'history' not in st.session_state:
     st.session_state.history = []
+if 'round_complete' not in st.session_state:
+    st.session_state.round_complete = False
 
 # ------------------------------
 # Utility Functions
@@ -87,11 +89,14 @@ def midpoint_madness_round(main_qb, week, sim_df, over_qbs=[], under_qbs=[]):
         correct += int(result)
         incorrect += int(not result)
 
+    lives_lost = min(1, incorrect)
+    points_earned = correct if lives_lost == 0 else 0
+
     return {
         'correct': correct,
         'incorrect': incorrect,
-        'lives_lost': incorrect,
-        'points_earned': correct,
+        'lives_lost': lives_lost,
+        'points_earned': points_earned,
         'results': results
     }
 
@@ -114,10 +119,26 @@ elif page == "Play Game":
     st.title(f"Week {st.session_state.week} — Midpoint Madness")
 
     if st.session_state.lives <= 0:
-        st.error("Game over! You've run out of lives.")
+        st.error("💀 Game Over! You've run out of lives.")
+        st.markdown(f"### Final Score: **{st.session_state.score}**")
+
+        # Find lowest odds successful guess
+        best_move = None
+        best_odds = 100000
+        for week_result in st.session_state.history:
+            for r in week_result['result']['results']:
+                if r['result'] == 'correct' and isinstance(r['american_odds'], int) and abs(r['american_odds']) < best_odds:
+                    best_odds = abs(r['american_odds'])
+                    best_move = r
+
+        if best_move:
+            st.markdown(f"🎯 Best Move: `{best_move['comparison']}` — Hit at odds: `{best_move['american_odds']}`")
+
         st.stop()
+
     if st.session_state.week > max(available_weeks):
-        st.success("You've made it through the season!")
+        st.success("🎉 Congratulations! You've made it through the entire season!")
+        st.markdown(f"### Final Score: **{st.session_state.score}**")
         st.stop()
 
     current_week_df = predictions_df[predictions_df['week'] == st.session_state.week]
@@ -141,26 +162,30 @@ elif page == "Play Game":
     over_qbs = st.multiselect("Pick QBs who will throw for LESS", others)
     under_qbs = st.multiselect("Pick QBs who will throw for MORE", [qb for qb in others if qb not in over_qbs])
 
-    if st.button("Lock in Picks!"):
-        if len(over_qbs) != len(under_qbs):
-            st.error("You must pick an equal number of over and under QBs.")
-        else:
-            result = midpoint_madness_round(selected_qb, st.session_state.week, predictions_df, over_qbs, under_qbs)
-            st.session_state.score += result['points_earned']
-            st.session_state.lives -= result['lives_lost']
-            st.session_state.history.append({
-                'week': st.session_state.week,
-                'main_qb': selected_qb,
-                'over_qbs': over_qbs,
-                'under_qbs': under_qbs,
-                'result': result
-            })
+    if not st.session_state.round_complete:
+        if st.button("Lock in Picks!"):
+            if len(over_qbs) != len(under_qbs):
+                st.error("You must pick an equal number of over and under QBs.")
+            else:
+                result = midpoint_madness_round(selected_qb, st.session_state.week, predictions_df, over_qbs, under_qbs)
+                st.session_state.score += result['points_earned']
+                st.session_state.lives -= result['lives_lost']
+                st.session_state.history.append({
+                    'week': st.session_state.week,
+                    'main_qb': selected_qb,
+                    'over_qbs': over_qbs,
+                    'under_qbs': under_qbs,
+                    'result': result
+                })
+                st.session_state.round_complete = True
+
+                st.subheader("Results")
+                for r in result['results']:
+                    st.markdown(f"**{r['comparison']}**: {r['result']} (Prob: {r['probability']*100:.2f}%, Odds: {r['american_odds']})")
+
+                st.success(f"You earned {result['points_earned']} point(s) and lost {result['lives_lost']} lives.")
+                st.info(f"Score: {st.session_state.score} | Lives: {st.session_state.lives}")
+    else:
+        if st.button("Advance to Next Week"):
             st.session_state.week += 1
-
-            # Display round results
-            st.subheader("Results")
-            for r in result['results']:
-                st.markdown(f"**{r['comparison']}**: {r['result']} (Prob: {r['probability']*100:.2f}%, Odds: {r['american_odds']})")
-
-            st.success(f"You earned {result['points_earned']} point(s) and lost {result['lives_lost']} lives.")
-            st.info(f"Score: {st.session_state.score} | Lives: {st.session_state.lives}")
+            st.session_state.round_complete = False
