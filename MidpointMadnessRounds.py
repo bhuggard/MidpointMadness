@@ -26,18 +26,21 @@ all_qbs = predictions_df['qb_name'].unique()
 # ------------------------------
 # Session state initialization
 # ------------------------------
-if 'username' not in st.session_state:
+def reset_game():
     st.session_state.username = None
-if 'week' not in st.session_state:
     st.session_state.week = 1
-if 'lives' not in st.session_state:
-    st.session_state.lives = 3
-if 'score' not in st.session_state:
-    st.session_state.score = 0
-if 'history' not in st.session_state:
+    st.session_state.coins = 100.0
     st.session_state.history = []
-if 'round_complete' not in st.session_state:
     st.session_state.round_complete = False
+    st.session_state.wager = 0.0
+    st.session_state.streak = 0
+    st.session_state.result = None
+    st.session_state.selected_qb = None
+    st.session_state.over_qbs = []
+    st.session_state.under_qbs = []
+
+if 'username' not in st.session_state:
+    reset_game()
 
 # ------------------------------
 # Utility Functions
@@ -51,7 +54,7 @@ def implied_odds_to_american(probability, cap_large=True, cap_value=5000):
         odds = round(100 * ((1 - probability) / probability))
     if cap_large and abs(odds) > cap_value:
         odds = cap_value if odds > 0 else -cap_value
-    return odds
+    return f"+{odds}" if odds > 0 else str(odds)
 
 def midpoint_madness_round(main_qb, week, sim_df, over_qbs=[], under_qbs=[]):
     results = []
@@ -63,6 +66,9 @@ def midpoint_madness_round(main_qb, week, sim_df, over_qbs=[], under_qbs=[]):
         raise ValueError(f"No simulation data found for QB '{main_qb}' in week {week}")
     main_sim = np.array(main_row.iloc[0]['simulations'])
 
+    parlay_prob = 1
+    parlay_american_odds = None
+
     for over_qb in over_qbs:
         comp_sim = np.array(week_df[week_df['qb_name'] == over_qb].iloc[0]['simulations'])
         prob = np.mean(main_sim > comp_sim)
@@ -73,6 +79,7 @@ def midpoint_madness_round(main_qb, week, sim_df, over_qbs=[], under_qbs=[]):
             'american_odds': implied_odds_to_american(prob),
             'result': 'correct' if result else 'incorrect'
         })
+        parlay_prob *= prob
         correct += int(result)
         incorrect += int(not result)
 
@@ -86,106 +93,115 @@ def midpoint_madness_round(main_qb, week, sim_df, over_qbs=[], under_qbs=[]):
             'american_odds': implied_odds_to_american(prob),
             'result': 'correct' if result else 'incorrect'
         })
+        parlay_prob *= prob
         correct += int(result)
         incorrect += int(not result)
 
-    lives_lost = min(1, incorrect)
-    points_earned = correct if lives_lost == 0 else 0
+    if parlay_prob < 1:
+        parlay_american_odds = implied_odds_to_american(parlay_prob)
+
+    total_bets = len(results)
+    correct_ratio = correct / total_bets if total_bets else 0
+    streak_bonus = 1
+
+    if incorrect == 0:
+        st.session_state.streak += 1
+        if st.session_state.streak == 2:
+            streak_bonus = 1
+        elif st.session_state.streak >= 3:
+            streak_bonus = st.session_state.streak
+    else:
+        st.session_state.streak = 0
+
+    if incorrect == 0:
+        if parlay_prob > 0:
+            decimal_odds = 1 / parlay_prob
+            total_return = st.session_state.wager * decimal_odds * streak_bonus
+            coins_earned = round(total_return, 2)
+        else:
+            coins_earned = 0.0
+    else:
+        coins_earned = 0.0
 
     return {
         'correct': correct,
         'incorrect': incorrect,
-        'lives_lost': lives_lost,
-        'points_earned': points_earned,
-        'results': results
+        'coins_earned': coins_earned,
+        'results': results,
+        'streak_bonus': streak_bonus,
+        'parlay_prob': parlay_prob if parlay_prob < 1 else None,
+        'parlay_odds': parlay_american_odds,
+        'winnings_only': round(coins_earned - st.session_state.wager, 2) if incorrect == 0 else 0.0
     }
 
 # ------------------------------
-# Streamlit UI
+# Streamlit UI (Game Display)
 # ------------------------------
-st.sidebar.title("Midpoint Madness")
-page = st.sidebar.radio("Navigate to:", ["Welcome", "Play Game"])
+st.title("🏈 Midpoint Madness")
 
-if page == "Welcome":
-    st.title("Welcome to Midpoint Madness!")
-    st.write("""
-    Welcome to **Midpoint Madness**, the football survival game!
-    - Each week, choose your QB.
-    - Pick an equal number of QBs you think will throw for more and less yards.
-    - Survive through all 22 weeks with just 3 lives!
-    """)
+st.markdown(f"### Week {st.session_state.week} | Coins: {st.session_state.coins:.2f} | Streak: {st.session_state.streak}")
 
-elif page == "Play Game":
-    st.title(f"Week {st.session_state.week} — Midpoint Madness")
+with st.expander("🔁 Reset Game"):
+    if st.button("Yes, I'm sure — Reset Game NOW", type="primary"):
+        reset_game()
+        st.rerun()
 
-    if st.session_state.lives <= 0:
-        st.error("💀 Game Over! You've run out of lives.")
-        st.markdown(f"### Final Score: **{st.session_state.score}**")
+current_week_df = predictions_df[predictions_df['week'] == st.session_state.week]
+week_qbs = current_week_df['qb_name'].unique()
 
-        # Find lowest odds successful guess
-        best_move = None
-        best_odds = 100000
-        for week_result in st.session_state.history:
-            for r in week_result['result']['results']:
-                if r['result'] == 'correct' and isinstance(r['american_odds'], int) and abs(r['american_odds']) < best_odds:
-                    best_odds = abs(r['american_odds'])
-                    best_move = r
+st.session_state.selected_qb = st.selectbox("Choose your main QB", week_qbs)
+others = [qb for qb in week_qbs if qb != st.session_state.selected_qb]
+st.session_state.over_qbs = st.multiselect("QBs who will throw for LESS", others)
+st.session_state.under_qbs = st.multiselect("QBs who will throw for MORE", [qb for qb in others if qb not in st.session_state.over_qbs])
 
-        if best_move:
-            st.markdown(f"🎯 Best Move: `{best_move['comparison']}` — Hit at odds: `{best_move['american_odds']}`")
-
-        st.stop()
-
-    if st.session_state.week > max(available_weeks):
-        st.success("🎉 Congratulations! You've made it through the entire season!")
-        st.markdown(f"### Final Score: **{st.session_state.score}**")
-        st.stop()
-
-    current_week_df = predictions_df[predictions_df['week'] == st.session_state.week]
-    week_qbs = current_week_df['qb_name'].unique()
-
-    selected_qb = st.selectbox("Choose your main QB", week_qbs)
-
-    if selected_qb:
-        sim_row = current_week_df[current_week_df['qb_name'] == selected_qb]
-        if not sim_row.empty:
-            selected_sim = sim_row['simulations'].iloc[0]
-
-            fig, ax = plt.subplots()
-            sns.kdeplot(selected_sim, fill=True, ax=ax)
-            ax.set_title(f"Simulated Yards for {selected_qb} in Week {st.session_state.week}")
-            st.pyplot(fig)
-        else:
-            st.warning(f"No simulation data found for {selected_qb} in Week {st.session_state.week}.")
-
-    others = [qb for qb in week_qbs if qb != selected_qb]
-    over_qbs = st.multiselect("Pick QBs who will throw for LESS", others)
-    under_qbs = st.multiselect("Pick QBs who will throw for MORE", [qb for qb in others if qb not in over_qbs])
-
-    if not st.session_state.round_complete:
-        if st.button("Lock in Picks!"):
-            if len(over_qbs) != len(under_qbs):
-                st.error("You must pick an equal number of over and under QBs.")
-            else:
-                result = midpoint_madness_round(selected_qb, st.session_state.week, predictions_df, over_qbs, under_qbs)
-                st.session_state.score += result['points_earned']
-                st.session_state.lives -= result['lives_lost']
-                st.session_state.history.append({
-                    'week': st.session_state.week,
-                    'main_qb': selected_qb,
-                    'over_qbs': over_qbs,
-                    'under_qbs': under_qbs,
-                    'result': result
-                })
-                st.session_state.round_complete = True
-
-                st.subheader("Results")
-                for r in result['results']:
-                    st.markdown(f"**{r['comparison']}**: {r['result']} (Prob: {r['probability']*100:.2f}%, Odds: {r['american_odds']})")
-
-                st.success(f"You earned {result['points_earned']} point(s) and lost {result['lives_lost']} lives.")
-                st.info(f"Score: {st.session_state.score} | Lives: {st.session_state.lives}")
+wager_input = st.text_input("Wager this week (e.g., 5.5)", value="10.0")
+try:
+    wager_float = round(float(wager_input), 2)
+    if wager_float <= 0 or wager_float > st.session_state.coins:
+        st.warning(f"Please enter a wager between 0.01 and {st.session_state.coins:.2f}.")
     else:
-        if st.button("Advance to Next Week"):
-            st.session_state.week += 1
-            st.session_state.round_complete = False
+        st.session_state.wager = wager_float
+except ValueError:
+    st.warning("Please enter a valid numeric wager.")
+
+if not st.session_state.round_complete and st.session_state.wager > 0:
+    if st.button("🎯 Lock in Picks"):
+        if len(st.session_state.over_qbs) != len(st.session_state.under_qbs):
+            st.error("You must select an equal number of over and under QBs.")
+        else:
+            st.session_state.result = midpoint_madness_round(
+                st.session_state.selected_qb,
+                st.session_state.week,
+                predictions_df,
+                st.session_state.over_qbs,
+                st.session_state.under_qbs
+            )
+            st.session_state.coins = round(st.session_state.coins + st.session_state.result['coins_earned'] - st.session_state.wager, 2)
+            st.session_state.round_complete = True
+
+if st.session_state.result:
+    result = st.session_state.result
+    st.subheader("Results")
+    for r in result['results']:
+        st.markdown(
+            f"**{r['comparison']}**: {r['result']} (Prob: {r['probability']*100:.2f}%, Odds: {r['american_odds']})"
+        )
+
+    if result['parlay_prob'] is not None:
+        st.markdown(
+            f"**Parlay Odds (All picks correct)**: {result['parlay_prob']*100:.2f}% chance, Odds: {result['parlay_odds']}"
+        )
+
+    if result['incorrect'] == 0:
+        st.success(f"You earned {result['winnings_only']:.2f} coins from your {st.session_state.wager:.2f} coin wager (Total return: {result['coins_earned']:.2f})")
+    else:
+        st.warning("You did not win this week. Better luck next time!")
+
+    st.info(f"Total Coins: {st.session_state.coins:.2f}")
+
+    if st.button("Next Week"):
+        st.session_state.week += 1
+        st.session_state.round_complete = False
+        st.session_state.result = None
+
+#TO ADD: Leaderboard? Superbowl week logic. Welcome page. description of model/game page.
