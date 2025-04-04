@@ -11,7 +11,7 @@ import seaborn as sns
 # ------------------------------
 @st.cache_resource
 def get_connection():
-    return sqlite3.connect("midpoint_madness.db", check_same_thread=False)
+    return sqlite3.connect("midpoint_madness_rolling.db", check_same_thread=False)
 
 conn = get_connection()
 
@@ -125,12 +125,17 @@ elif page == "Play Game":
 
     selected_qb = st.selectbox("Choose your main QB", week_qbs)
 
-    # Plot their distribution
-    selected_sim = current_week_df[current_week_df['qb_name'] == selected_qb]['simulations'].iloc[0]
-    fig, ax = plt.subplots()
-    sns.kdeplot(selected_sim, fill=True, ax=ax)
-    ax.set_title(f"Simulated Yards for {selected_qb} in Week {st.session_state.week}")
-    st.pyplot(fig)
+    if selected_qb:
+        sim_row = current_week_df[current_week_df['qb_name'] == selected_qb]
+        if not sim_row.empty:
+            selected_sim = sim_row['simulations'].iloc[0]
+
+            fig, ax = plt.subplots()
+            sns.kdeplot(selected_sim, fill=True, ax=ax)
+            ax.set_title(f"Simulated Yards for {selected_qb} in Week {st.session_state.week}")
+            st.pyplot(fig)
+        else:
+            st.warning(f"No simulation data found for {selected_qb} in Week {st.session_state.week}.")
 
     others = [qb for qb in week_qbs if qb != selected_qb]
     over_qbs = st.multiselect("Pick QBs who will throw for LESS", others)
