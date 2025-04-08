@@ -54,7 +54,7 @@ if st.session_state.get('game_reset'):
 # Sidebar Navigation
 # ------------------------------
 st.sidebar.title("🏈 Midpoint Madness")
-page = st.sidebar.radio("Navigate to:", ["Welcome", "Play Game", "Methodology"])
+page = st.sidebar.radio("Navigate to:", ["Welcome", "Play Game", "Methodology", "Known Bugs"])
 
 # ------------------------------
 # Welcome Page
@@ -67,11 +67,13 @@ if page == "Welcome":
     🧠 **How to Play**:
     - Each week, choose a quarterback.
     - Select other QBs who you believe will throw for **more** and **less** yards.
-    - You must wager your coins on your picks — win by surviving the season with the most coins!
+    - You must wager your coins on your picks — score coins by correctly creating "Midpoint Madness" without making any mistakes for a week.
+    - After one play per week 
 
     💰 **Starting Balance**: 100 coins
     🎯 **Goal**: Finish the season with as many coins as possible
     📈 **Scoring**: Based on parlay odds of your correct predictions
+    **
 
     Ready? Head to the **Play Game** tab!
     """)
