@@ -54,7 +54,7 @@ if st.session_state.get('game_reset'):
 # Sidebar Navigation
 # ------------------------------
 st.sidebar.title("🏈 Midpoint Madness")
-page = st.sidebar.radio("Navigate to:", ["Welcome", "Play Game", "Methodology", "Known Bugs"])
+page = st.sidebar.radio("Navigate to:", ["Welcome", "Play Game", "Methodology", "Known Bugs and Feedback"])
 
 # ------------------------------
 # Welcome Page
@@ -62,20 +62,42 @@ page = st.sidebar.radio("Navigate to:", ["Welcome", "Play Game", "Methodology", 
 if page == "Welcome":
     st.title("👋 Welcome to Midpoint Madness!")
     st.markdown("""
-    Midpoint Madness is a strategic, simulation-driven football prediction game.
+    Midpoint Madness is a strategic, simulation-driven football prediction game on the 2024 NFL Season developed by [Brandon Huggard](https://www.linkedin.com/in/brandon-huggard-5957a0192/).
 
-    🧠 **How to Play**:
+    🧠 **How to Play and Basic Info**:
     - Each week, choose a quarterback.
     - Select other QBs who you believe will throw for **more** and **less** yards.
     - You must wager your coins on your picks — score coins by correctly creating "Midpoint Madness" without making any mistakes for a week.
-    - After one play per week 
+    - After one play per week you must advance, regardless as to whether or not you earned coins that week.
+    - QB's making their first start of the season (outside of week 1) are currently unavaiable for selection.
+    - Week 1 though Conference Championship week are currently available for play. Ideas for a fun way to cap your game with the Superbowl are being considered- share your opinions!
+    - Scoring is based off the honor system. Did these games already happen? Yes. Will it be fun to try and find who cheated based on scores and certain weeks? Double yes. Bring it.
 
     💰 **Starting Balance**: 100 coins
-    🎯 **Goal**: Finish the season with as many coins as possible
+    🎯 **Goal**: Finish the season with as many coins as possible- share your score with friends!
     📈 **Scoring**: Based on parlay odds of your correct predictions
-    **
 
     Ready? Head to the **Play Game** tab!
+    """)
+
+# ------------------------------
+# Known Bugs Page
+# ------------------------------
+elif page == "Known Bugs and Feedback":
+    st.title("🐞 Known Bugs and Feedback")
+    st.markdown("""
+    **What's not working? (That I'm aware of)**
+
+    🧩 **UI Lag/Functionality**
+    - When players cash out the game does not reset, instead returning them to the week they were on, forcing them to reset the game using the button presented there.\
+                - This is just stemming from a lack of practice with Streamlit/app development. It's on the radar and trust me- it bugs me. I'll get this one squashed.
+    - Week advancement takes multiple clicks to fully advance. Similar to cashout resets, this is just something I will workshop until I have a proper, flush solution and will come as I continue to tinker.
+    -A proper leaderboard! I will get a separate database established to track scores in an arcade-y style. The all time top 10 scores across all players will be present on their own page in the future- see how high you can place!
+
+    📝 **Feedback**
+    - Find something wrong? Have thoughts on the app and ways to improve it or things you liked in particular? Let me know!
+    [Feedback and Bug Reporting](https://forms.gle/1hbj2BmGDYm9cvhN7) - Thank you!!
+                  
     """)
 
 # ------------------------------
@@ -91,18 +113,21 @@ elif page == "Methodology":
     🏗️ **Model Features**:
     - QB performance metrics (e.g., completion %, air yards)
     - Opponent defense statistics (e.g., EPA allowed, pressure rates)
+    - Both QB and opposing defensive stats are calculated using exponentially weighted moving averages to give our model something to work with in terms of identifying defenses that have been particularly vulnerable and QB's that have been on a heater to make initial predictions sharper.
+                - Use of EWMA's was inspired by [this OpenSourceFootball article by Ben Dominguez](https://opensourcefootball.com/posts/2021-01-21-nfl-game-prediction-using-logistic-regression/).
     - Game context: implied team totals, home/away, weather flags
 
-    📊 **Simulation Details**:
-    - Each quarterback has a distribution of 1,000 simulated outcomes per week
+
+    📊 **Monte Carlo Simulation Details**:
+    - Each quarterback has a distribution of 1,000 simulated outcomes per week- we aim to "play" each game 1,000 times to create a distribution of outcomes for each qb, each week in an effort to create comparative probabilities.
     - These simulations are used to determine the probability that one QB will throw for more or less than another
-    - Odds are derived using implied probability formulas and adjusted for realism
+    - Odds are derived using implied probability formulas and adjusted for realism. (Deshaun Watson was causing problems (understatement of the year) in how few yards we had him projected)
 
     💡 **Parlay Logic**:
     - Choosing multiple QBs creates a simulated "parlay" of outcomes
-    - The more accurate your picks, the greater your payout — but also the higher the risk!
+    - The more "unlikely" your picks, the greater your payout — but also the higher the risk! 
     
-    Have questions? Reach out on GitHub or drop a suggestion in the app!
+    Have questions? See ways to improve this? Reach out on [LinkedIn](https://www.linkedin.com/in/brandon-huggard-5957a0192/)! I'm always happy to talk ball, this project, or whatever else.
     """)
 
 # ------------------------------
@@ -215,5 +240,3 @@ elif page == "Play Game":
             st.session_state.week += 1
             st.session_state.round_complete = False
             st.session_state.result = None
-
-#TO ADD: Leaderboard? Superbowl week logic. Welcome page. description of model/game page. Next add focus has to be welcome page.
