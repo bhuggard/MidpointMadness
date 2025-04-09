@@ -50,6 +50,94 @@ if st.session_state.get('game_reset'):
     st.session_state['game_reset'] = False
     st.rerun()
 
+def implied_odds_to_american(probability, cap_large=True, cap_value=5000):
+    if probability <= 0 or probability >= 1:
+        return 'N/A'
+    if probability >= 0.5:
+        odds = round(-100 * (probability / (1 - probability)))
+    else:
+        odds = round(100 * ((1 - probability) / probability))
+    if cap_large and abs(odds) > cap_value:
+        odds = cap_value if odds > 0 else -cap_value
+    return f"+{odds}" if odds > 0 else str(odds)
+
+def midpoint_madness_round(main_qb, week, sim_df, over_qbs=[], under_qbs=[]):
+    results = []
+    correct = 0
+    incorrect = 0
+    week_df = sim_df[sim_df['week'] == week]
+    main_row = week_df[week_df['qb_name'] == main_qb]
+    if main_row.empty:
+        raise ValueError(f"No simulation data found for QB '{main_qb}' in week {week}")
+    main_sim = np.array(main_row.iloc[0]['simulations'])
+
+    parlay_prob = 1
+    parlay_american_odds = None
+
+    for over_qb in over_qbs:
+        comp_sim = np.array(week_df[week_df['qb_name'] == over_qb].iloc[0]['simulations'])
+        prob = np.mean(main_sim > comp_sim)
+        result = prob > 0.5
+        results.append({
+            'comparison': f"{main_qb} > {over_qb}",
+            'probability': prob,
+            'american_odds': implied_odds_to_american(prob),
+            'result': 'correct' if result else 'incorrect'
+        })
+        parlay_prob *= prob
+        correct += int(result)
+        incorrect += int(not result)
+
+    for under_qb in under_qbs:
+        comp_sim = np.array(week_df[week_df['qb_name'] == under_qb].iloc[0]['simulations'])
+        prob = np.mean(main_sim < comp_sim)
+        result = prob > 0.5
+        results.append({
+            'comparison': f"{main_qb} < {under_qb}",
+            'probability': prob,
+            'american_odds': implied_odds_to_american(prob),
+            'result': 'correct' if result else 'incorrect'
+        })
+        parlay_prob *= prob
+        correct += int(result)
+        incorrect += int(not result)
+
+    if parlay_prob < 1:
+        parlay_american_odds = implied_odds_to_american(parlay_prob)
+
+    total_bets = len(results)
+    correct_ratio = correct / total_bets if total_bets else 0
+    streak_bonus = 1
+
+    if incorrect == 0:
+        st.session_state.streak += 1
+        if st.session_state.streak == 2:
+            streak_bonus = 1
+        elif st.session_state.streak >= 3:
+            streak_bonus = st.session_state.streak
+    else:
+        st.session_state.streak = 0
+
+    if incorrect == 0:
+        if parlay_prob > 0:
+            decimal_odds = 1 / parlay_prob
+            total_return = st.session_state.wager * decimal_odds * streak_bonus
+            coins_earned = round(total_return, 2)
+        else:
+            coins_earned = 0.0
+    else:
+        coins_earned = 0.0
+
+    return {
+        'correct': correct,
+        'incorrect': incorrect,
+        'coins_earned': coins_earned,
+        'results': results,
+        'streak_bonus': streak_bonus,
+        'parlay_prob': parlay_prob if parlay_prob < 1 else None,
+        'parlay_odds': parlay_american_odds,
+        'winnings_only': round(coins_earned - st.session_state.wager, 2) if incorrect == 0 else 0.0
+    }
 # ------------------------------
 # Sidebar Navigation
 # ------------------------------
@@ -133,6 +221,8 @@ elif page == "Methodology":
 # ------------------------------
 # Game Page
 # ------------------------------
+
+
 elif page == "Play Game":
     # The entire existing game logic goes here...
     st.title("🏈 Midpoint Madness")
