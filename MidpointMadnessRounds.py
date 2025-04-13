@@ -212,9 +212,7 @@ elif page == "Methodology":
     - Odds are derived using implied probability formulas and adjusted for realism. (Deshaun Watson was causing problems (understatement of the year) in how few yards we had him projected)
     - Each week, for each QB:
                 The model generates a predicted passing yardage.
-                We then simulate that QB’s passing yards 1,000 times, starting with a normal distribution
-                But here’s the twist:
-                    Instead of using just raw predicted yards and something like the root mean squared error to create our curves for each week, we adjust it with the QB’s indiviudal pass yards over or under expected during the year, making their curve more personalized and our predicted probabilites sharper.
+                We then simulate that QB’s passing yards 1,000 times, with a twist- instead of using just raw predicted yards and something like the root mean squared error to create our curves for each week, we adjust it with the QB’s indiviudal pass yards over or under expected during the year, making their curve more personalized and our predicted probabilites sharper on top of a random noise scale to try and capture some of the natural unpredictability that comes with the sport.
 
     
     💡 **Parlay Logic**:
